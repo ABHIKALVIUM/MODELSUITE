@@ -4,6 +4,7 @@ import TasksTable from '../../components/admin/TasksTable';
 import CreateTaskModal from '../../components/admin/CreateTaskModal';
 import EditTaskModal from '../../components/admin/EditTaskModal';
 import { fetchAllTasks } from '../../api/tasks';
+import { useToast, ToastContainer } from '../../components/Toast';
 
 /* ── Search icon ── */
 const IconSearch = () => (
@@ -26,13 +27,14 @@ const AdminDashboard = () => {
   const [editTask, setEditTask]     = useState(null);
   const [search, setSearch]         = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const { toasts, toast, removeToast } = useToast();
 
   const loadTasks = async () => {
     try {
       const { data } = await fetchAllTasks();
       setTasks(data);
     } catch {
-      alert('Failed to load tasks');
+      toast.error('Failed to load tasks');
     }
   };
 
@@ -156,20 +158,23 @@ const AdminDashboard = () => {
             </div>
           </div>
 
-          <TasksTable tasks={filteredTasks} onEdit={setEditTask} onRefresh={loadTasks} />
+          <TasksTable tasks={filteredTasks} onEdit={setEditTask} onRefresh={loadTasks} toast={toast} />
         </div>
       </main>
 
       {showCreate && (
-        <CreateTaskModal onClose={() => setShowCreate(false)} onCreated={loadTasks} />
+        <CreateTaskModal onClose={() => setShowCreate(false)} onCreated={loadTasks} toast={toast} />
       )}
       {editTask && (
         <EditTaskModal
           task={editTask}
           onClose={() => setEditTask(null)}
           onUpdated={() => { loadTasks(); setEditTask(null); }}
+          toast={toast}
         />
       )}
+
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 };

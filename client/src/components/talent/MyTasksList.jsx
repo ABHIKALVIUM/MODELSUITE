@@ -35,7 +35,7 @@ const fmtDate = (raw) => {
   } catch { return raw; }
 };
 
-const MyTasksList = ({ tasks, onRefresh }) => {
+const MyTasksList = ({ tasks, onRefresh, toast }) => {
   const [submitTarget, setSubmitTarget] = useState(null);
 
   if (!tasks || tasks.length === 0) {
@@ -129,6 +129,7 @@ const MyTasksList = ({ tasks, onRefresh }) => {
           task={submitTarget}
           onClose={() => setSubmitTarget(null)}
           onSubmitted={() => { setSubmitTarget(null); if (onRefresh) onRefresh(); }}
+          toast={toast}
         />
       )}
     </>

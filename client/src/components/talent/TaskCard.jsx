@@ -1,4 +1,4 @@
-﻿import { claimTask } from '../../api/talent';
+import { claimTask } from '../../api/talent';
 
 const STATUS_CLASS = {
   Open:      'status-badge-Open',
@@ -8,14 +8,33 @@ const STATUS_CLASS = {
   Rejected:  'status-badge-Rejected',
 };
 
-const TaskCard = ({ task, showClaimButton = false, onClaimed }) => {
+/* ── Deadline badge helper (Feature #14) ── */
+const DeadlineBadge = ({ dueDate }) => {
+  if (!dueDate) return null;
+  const due = new Date(dueDate);
+  if (isNaN(due)) return null;
+  const now = new Date();
+  const diffMs = due - now;
+  const diffHrs = diffMs / (1000 * 60 * 60);
+
+  if (diffMs < 0) {
+    return <span className="badge-overdue">🔴 Overdue</span>;
+  }
+  if (diffHrs <= 24) {
+    return <span className="badge-due-soon">⚠ Due Soon</span>;
+  }
+  return null;
+};
+
+const TaskCard = ({ task, showClaimButton = false, onClaimed, toast }) => {
 
   const handleClaim = async () => {
     try {
       await claimTask(task._id);
+      toast?.success('Task claimed successfully!');
       if (onClaimed) onClaimed();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to claim task');
+      toast?.error(err.response?.data?.message || 'Failed to claim task');
     }
   };
 
@@ -32,17 +51,18 @@ const TaskCard = ({ task, showClaimButton = false, onClaimed }) => {
         )}
       </div>
 
-      
       {task.description && (
         <p className="text-[13px] text-text-muted leading-relaxed">{task.description}</p>
       )}
 
-      {/* Meta row */}
+      {/* Meta row: due date + deadline badge (Feature #14) */}
       <div className="flex items-center justify-between flex-wrap gap-2 mt-auto">
-        
-        <span className="text-[12px] text-text-faint">
-          {task.dueDate ? `Due: ${task.dueDate}` : 'No due date'}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span className="text-[12px] text-text-faint">
+            {task.dueDate ? `Due: ${task.dueDate}` : 'No due date'}
+          </span>
+          <DeadlineBadge dueDate={task.dueDate} />
+        </div>
         {task.createdBy?.name && (
           <span className="text-[12px] text-text-faint">By {task.createdBy.name}</span>
         )}
