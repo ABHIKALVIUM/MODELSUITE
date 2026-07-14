@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { deleteTask } from '../../api/tasks';
 
 /* ── SVG Action Icons ── */
@@ -32,6 +33,32 @@ const fmtDate = (raw) => {
   } catch { return raw; }
 };
 
+/* ── Deadline badge helper (Feature #14) ── */
+const DeadlineBadge = ({ dueDate }) => {
+  if (!dueDate) return null;
+  const due = new Date(dueDate);
+  if (isNaN(due)) return null;
+  const now = new Date();
+  const diffMs = due - now;
+  const diffHrs = diffMs / (1000 * 60 * 60);
+
+  if (diffMs < 0) {
+    return (
+      <span className="badge-overdue" title="This task is overdue">
+        🔴 Overdue
+      </span>
+    );
+  }
+  if (diffHrs <= 24) {
+    return (
+      <span className="badge-due-soon" title="Due within 24 hours">
+        ⚠ Due Soon
+      </span>
+    );
+  }
+  return null;
+};
+
 /* ── Status badge class ── */
 const STATUS_CLASS = {
   Open:      'status-badge-Open',
@@ -41,14 +68,71 @@ const STATUS_CLASS = {
   Rejected:  'status-badge-Rejected',
 };
 
-const TasksTable = ({ tasks, onEdit, onRefresh }) => {
+/* ── Confirmation Modal (Bug #26) ── */
+const ConfirmModal = ({ title, message, onConfirm, onCancel }) => (
+  <div
+    style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
+      backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center',
+      justifyContent: 'center', zIndex: 300, padding: '24px',
+    }}
+    onClick={onCancel}
+  >
+    <div
+      style={{
+        background: '#0D0D0D', border: '1px solid rgba(255,255,255,0.1)',
+        borderRadius: '14px', width: '100%', maxWidth: '380px',
+        boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
+        animation: 'modalIn 0.2s cubic-bezier(0.16,1,0.3,1) forwards',
+        fontFamily: 'Inter, sans-serif',
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div style={{ padding: '20px 22px 0' }}>
+        <p style={{ fontSize: '15px', fontWeight: 600, color: '#F0F0F0', margin: '0 0 8px' }}>{title}</p>
+        <p style={{ fontSize: '13px', color: '#6B7280', margin: 0, lineHeight: 1.6 }}>{message}</p>
+      </div>
+      <div style={{ display: 'flex', gap: '10px', padding: '18px 22px 20px' }}>
+        <button
+          id="confirm-cancel-btn"
+          onClick={onCancel}
+          style={{
+            flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)',
+            background: 'rgba(255,255,255,0.04)', color: '#9CA3AF', fontSize: '13px',
+            fontWeight: 500, cursor: 'pointer', fontFamily: 'Inter, sans-serif',
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          id="confirm-delete-btn"
+          onClick={onConfirm}
+          style={{
+            flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.35)',
+            background: 'rgba(239,68,68,0.12)', color: '#F87171', fontSize: '13px',
+            fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif',
+          }}
+        >
+          Delete Task
+        </button>
+      </div>
+    </div>
+  </div>
+);
 
-  const handleDelete = async (id) => {
+const TasksTable = ({ tasks, onEdit, onRefresh, toast }) => {
+  const [confirmTarget, setConfirmTarget] = useState(null);
+
+  const handleDelete = async () => {
+    if (!confirmTarget) return;
+    const id = confirmTarget._id;
+    setConfirmTarget(null);
     try {
       await deleteTask(id);
+      toast?.success('Task deleted successfully');
       onRefresh();
     } catch {
-      alert('Failed to delete task');
+      toast?.error('Failed to delete task');
     }
   };
 
@@ -66,97 +150,114 @@ const TasksTable = ({ tasks, onEdit, onRefresh }) => {
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse" style={{ fontSize: '13.5px' }}>
-        <thead>
-          <tr>
-            <th className="table-th">Title</th>
-            <th className="table-th">Status</th>
-            <th className="table-th">Assigned To</th>
-            <th className="table-th">Due Date</th>
-            <th className="table-th">Created</th>
-            <th className="table-th">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {tasks.map((task, i) => (
-            <tr key={task._id}
-              className="table-row table-row-animate"
-              style={{ animationDelay: `${i * 0.05}s` }}>
-
-              {/* Title + description */}
-              <td className="table-td" style={{ maxWidth: '260px' }}>
-                <span className="block font-semibold truncate"
-                  style={{ color: '#E5E2E1', fontFamily: 'Inter, sans-serif', marginBottom: '2px' }}>
-                  {task.title || '—'}
-                </span>
-                {task.description && (
-                  <span className="block truncate" style={{ color: '#4B5563', fontSize: '12px', maxWidth: '240px' }}>
-                    {task.description}
-                  </span>
-                )}
-              </td>
-
-              {/* Status badge */}
-              <td className="table-td">
-                <span className={`inline-block px-2.5 py-[3px] rounded-full text-[11.5px] font-medium ${STATUS_CLASS[task.status] || 'status-badge-Open'}`}
-                  style={{ fontFamily: 'Inter, sans-serif' }}>
-                  {task.status || '—'}
-                </span>
-              </td>
-
-              {/* Assigned to */}
-              <td className="table-td" style={{ whiteSpace: 'nowrap' }}>
-                {task.assignedTo ? (
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="flex items-center justify-center text-[11px] font-bold text-white shrink-0"
-                      style={{
-                        width: '26px', height: '26px', borderRadius: '50%',
-                        background: getAvatarGradient(task.assignedTo.name || ''),
-                        fontFamily: 'Inter, sans-serif',
-                      }}>
-                      {task.assignedTo.name?.[0]?.toUpperCase()}
-                    </div>
-                    <span style={{ color: '#E5E2E1' }}>{task.assignedTo.name}</span>
-                  </div>
-                ) : (
-                  <span style={{ color: '#4B5563', fontSize: '13px' }}>Unassigned</span>
-                )}
-              </td>
-
-              {/* Due date */}
-              <td className="table-td" style={{ color: '#6B7280', whiteSpace: 'nowrap' }}>
-                {fmtDate(task.dueDate)}
-              </td>
-
-              {/* Created */}
-              <td className="table-td" style={{ color: '#4B5563', whiteSpace: 'nowrap', fontSize: '12.5px' }}>
-                {fmtDate(task.createdAt)}
-              </td>
-
-              {/* Actions */}
-              <td className="table-td">
-                <div className="flex gap-1.5">
-                  <button
-                    onClick={() => onEdit(task)}
-                    title="Edit task"
-                    className="action-btn action-btn-edit">
-                    <IconEdit />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(task._id)}
-                    title="Delete task"
-                    className="action-btn action-btn-delete">
-                    <IconDelete />
-                  </button>
-                </div>
-              </td>
+    <>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse" style={{ fontSize: '13.5px' }}>
+          <thead>
+            <tr>
+              <th className="table-th">Title</th>
+              <th className="table-th">Status</th>
+              <th className="table-th">Assigned To</th>
+              <th className="table-th">Due Date</th>
+              <th className="table-th">Created</th>
+              <th className="table-th">Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {tasks.map((task, i) => (
+              <tr key={task._id}
+                className="table-row table-row-animate"
+                style={{ animationDelay: `${i * 0.05}s` }}>
+
+                {/* Title + description */}
+                <td className="table-td" style={{ maxWidth: '260px' }}>
+                  <span className="block font-semibold truncate"
+                    style={{ color: '#E5E2E1', fontFamily: 'Inter, sans-serif', marginBottom: '2px' }}>
+                    {task.title || '—'}
+                  </span>
+                  {task.description && (
+                    <span className="block truncate" style={{ color: '#4B5563', fontSize: '12px', maxWidth: '240px' }}>
+                      {task.description}
+                    </span>
+                  )}
+                </td>
+
+                {/* Status badge */}
+                <td className="table-td">
+                  <span className={`inline-block px-2.5 py-[3px] rounded-full text-[11.5px] font-medium ${STATUS_CLASS[task.status] || 'status-badge-Open'}`}
+                    style={{ fontFamily: 'Inter, sans-serif' }}>
+                    {task.status || '—'}
+                  </span>
+                </td>
+
+                {/* Assigned to */}
+                <td className="table-td" style={{ whiteSpace: 'nowrap' }}>
+                  {task.assignedTo ? (
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+                        style={{
+                          width: '26px', height: '26px', borderRadius: '50%',
+                          background: getAvatarGradient(task.assignedTo.name || ''),
+                          fontFamily: 'Inter, sans-serif',
+                        }}>
+                        {task.assignedTo.name?.[0]?.toUpperCase()}
+                      </div>
+                      <span style={{ color: '#E5E2E1' }}>{task.assignedTo.name}</span>
+                    </div>
+                  ) : (
+                    <span style={{ color: '#4B5563', fontSize: '13px' }}>Unassigned</span>
+                  )}
+                </td>
+
+                {/* Due date + deadline badge (Feature #14) */}
+                <td className="table-td" style={{ color: '#6B7280', whiteSpace: 'nowrap' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span>{fmtDate(task.dueDate)}</span>
+                    <DeadlineBadge dueDate={task.dueDate} />
+                  </div>
+                </td>
+
+                {/* Created */}
+                <td className="table-td" style={{ color: '#4B5563', whiteSpace: 'nowrap', fontSize: '12.5px' }}>
+                  {fmtDate(task.createdAt)}
+                </td>
+
+                {/* Actions */}
+                <td className="table-td">
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => onEdit(task)}
+                      title="Edit task"
+                      id={`edit-task-${task._id}`}
+                      className="action-btn action-btn-edit">
+                      <IconEdit />
+                    </button>
+                    <button
+                      onClick={() => setConfirmTarget(task)}
+                      title="Delete task"
+                      id={`delete-task-${task._id}`}
+                      className="action-btn action-btn-delete">
+                      <IconDelete />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Bug #26: Confirmation dialog for destructive delete */}
+      {confirmTarget && (
+        <ConfirmModal
+          title="Delete Task?"
+          message={`Are you sure you want to delete "${confirmTarget.title}"? This will also remove all associated submissions and cannot be undone.`}
+          onConfirm={handleDelete}
+          onCancel={() => setConfirmTarget(null)}
+        />
+      )}
+    </>
   );
 };
 

@@ -1,11 +1,11 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { updateTask, fetchTalents } from '../../api/tasks';
 
 const STATUS_OPTIONS = ['Open', 'Claimed', 'Submitted', 'Approved', 'Rejected'];
 const inputCls = 'w-full bg-bg-input border border-border rounded-lg px-3.5 py-2.5 text-sm text-text-primary outline-none placeholder:text-[#4e4a6e] focus:border-primary focus:ring-[3px] focus:ring-primary/15 transition-all font-sans resize-y';
 const labelCls = 'text-[11px] font-semibold uppercase tracking-[0.5px] text-text-muted';
 
-const EditTaskModal = ({ task, onClose, onUpdated }) => {
+const EditTaskModal = ({ task, onClose, onUpdated, toast }) => {
   const [form, setForm] = useState({
     title:       task.title       || '',
     description: task.description || '',
@@ -28,7 +28,7 @@ const EditTaskModal = ({ task, onClose, onUpdated }) => {
       onUpdated(data);
       onClose();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to update task');
+      toast?.error(err.response?.data?.message || 'Failed to update task');
     }
   };
 

@@ -1,6 +1,6 @@
-﻿import TaskCard from './TaskCard';
+import TaskCard from './TaskCard';
 
-const AvailableTasksList = ({ tasks, onClaimed }) => {
+const AvailableTasksList = ({ tasks, onClaimed, toast }) => {
   if (!tasks || tasks.length === 0) {
     return (
       <div className="bg-bg-card border border-dashed border-border rounded-xl py-10 px-6 text-center text-text-faint text-sm">
@@ -12,7 +12,7 @@ const AvailableTasksList = ({ tasks, onClaimed }) => {
   return (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
       {tasks.map((task) => (
-        <TaskCard key={task._id} task={task} showClaimButton onClaimed={onClaimed} />
+        <TaskCard key={task._id} task={task} showClaimButton onClaimed={onClaimed} toast={toast} />
       ))}
     </div>
   );

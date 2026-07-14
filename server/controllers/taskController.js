@@ -1,4 +1,6 @@
-﻿const Task = require('../models/Task');
+const Task = require('../models/Task');
+const Submission = require('../models/Submission');
+const User = require('../models/User');
 
 // @desc  Get all tasks
 // @route GET /api/tasks
@@ -41,6 +43,17 @@ const createTask = async (req, res) => {
   const { title, description, status, assignedTo, dueDate } = req.body;
 
   try {
+    // Bug #2: Only allow assignment to Talent-role users
+    if (assignedTo) {
+      const assignee = await User.findById(assignedTo);
+      if (!assignee) {
+        return res.status(404).json({ message: 'Assigned user not found' });
+      }
+      if (assignee.role !== 'Talent') {
+        return res.status(400).json({ message: 'Tasks can only be assigned to Talent users, not Admins' });
+      }
+    }
+
     const task = await Task.create({
       title,
       description,
@@ -63,7 +76,18 @@ const updateTask = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ message: 'Task not found' });
-    // including internal fields like createdBy or __v
+
+    // Bug #2: Only allow assignment to Talent-role users
+    if (req.body.assignedTo) {
+      const assignee = await User.findById(req.body.assignedTo);
+      if (!assignee) {
+        return res.status(404).json({ message: 'Assigned user not found' });
+      }
+      if (assignee.role !== 'Talent') {
+        return res.status(400).json({ message: 'Tasks can only be assigned to Talent users, not Admins' });
+      }
+    }
+
     const updated = await Task.findByIdAndUpdate(
       req.params.id,
       { ...req.body },
@@ -83,7 +107,10 @@ const deleteTask = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ message: 'Task not found' });
-    // — orphaned Submission documents remain in DB after task deletion
+
+    // Bug #5: Cascade-delete all submissions tied to this task
+    await Submission.deleteMany({ taskId: req.params.id });
+
     await Task.findByIdAndDelete(req.params.id);
 
     res.json({ message: 'Task deleted' });

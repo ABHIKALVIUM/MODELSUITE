@@ -4,23 +4,22 @@ import AvailableTasksList from '../../components/talent/AvailableTasksList';
 import MyTasksList from '../../components/talent/MyTasksList';
 import { fetchAvailableTasks, fetchMyTasks } from '../../api/talent';
 import { useAuth } from '../../context/AuthContext';
-
-/* ── Wave emoji stripped, use clean greeting ── */
+import { useToast, ToastContainer } from '../../components/Toast';
 
 const TalentDashboard = () => {
   const { user } = useAuth();
   const [availableTasks, setAvailableTasks] = useState([]);
   const [myTasks, setMyTasks]               = useState([]);
-  const [error, setError] = useState(null);
+  const { toasts, toast, removeToast } = useToast();
 
   const loadAvailable = async () => {
     try { const { data } = await fetchAvailableTasks(); setAvailableTasks(data); }
-    catch { setError('Failed to load available tasks'); }
+    catch { toast.error('Failed to load available tasks'); }
   };
 
   const loadMyTasks = async () => {
     try { const { data } = await fetchMyTasks(); setMyTasks(data); }
-    catch { setError('Failed to load your tasks'); }
+    catch { toast.error('Failed to load your tasks'); }
   };
 
   // eslint-disable-next-line
@@ -44,13 +43,6 @@ const TalentDashboard = () => {
           </p>
         </div>
 
-        {error && (
-          <p className="text-[13px] mb-4 px-4 py-3 rounded-lg"
-            style={{ color: '#F87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
-            {error}
-          </p>
-        )}
-
         {/* Available Tasks */}
         <section className="mb-7 page-section">
           <div className="flex items-center gap-2.5 mb-4">
@@ -67,7 +59,7 @@ const TalentDashboard = () => {
               {availableTasks.length}
             </span>
           </div>
-          <AvailableTasksList tasks={availableTasks} onClaimed={handleRefresh} />
+          <AvailableTasksList tasks={availableTasks} onClaimed={handleRefresh} toast={toast} />
         </section>
 
         {/* My Tasks */}
@@ -86,9 +78,11 @@ const TalentDashboard = () => {
               {myTasks.length}
             </span>
           </div>
-          <MyTasksList tasks={myTasks} onRefresh={handleRefresh} />
+          <MyTasksList tasks={myTasks} onRefresh={handleRefresh} toast={toast} />
         </section>
       </main>
+
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 };

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Sidebar from '../../components/admin/Sidebar';
 import SubmissionReviewModal from '../../components/admin/SubmissionReviewModal';
 import { fetchAllSubmissions } from '../../api/submissions';
+import { useToast, ToastContainer } from '../../components/Toast';
 
 const REVIEW_STATUS_CLASS = {
   Pending:  'status-badge-Submitted',
@@ -12,13 +13,14 @@ const REVIEW_STATUS_CLASS = {
 const SubmissionsPage = () => {
   const [submissions, setSubmissions] = useState([]);
   const [reviewTarget, setReviewTarget] = useState(null);
+  const { toasts, toast, removeToast } = useToast();
 
   const loadSubmissions = async () => {
     try {
       const { data } = await fetchAllSubmissions();
       setSubmissions(data);
     } catch {
-      alert('Failed to load submissions');
+      toast.error('Failed to load submissions');
     }
   };
 
@@ -108,8 +110,7 @@ const SubmissionsPage = () => {
                         </div>
                       </td>
 
-                      {/* Notes — truncated, no tooltip */}
-                      
+                      {/* Notes — truncated */}
                       <td className={`${tdCls} max-w-[200px]`}>
                         <span className="block text-text-muted truncate text-[13px]">
                           {sub.notes || <span className="italic text-text-faint">No notes</span>}
@@ -128,9 +129,9 @@ const SubmissionsPage = () => {
                         )}
                       </td>
 
-                      {/* Submitted at — raw ISO */}
+                      {/* Submitted at */}
                       <td className={`${tdCls} text-text-muted text-[13px] whitespace-nowrap`}>
-                        {sub.createdAt}
+                        {sub.createdAt ? new Date(sub.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                       </td>
 
                       {/* Review status */}
@@ -142,7 +143,9 @@ const SubmissionsPage = () => {
 
                       {/* Actions */}
                       <td className={tdCls}>
-                        <button onClick={() => setReviewTarget(sub)}
+                        <button
+                          id={`review-submission-${sub._id}`}
+                          onClick={() => setReviewTarget(sub)}
                           className="px-3.5 py-1.5 bg-primary/10 text-primary border border-primary/30 rounded-lg text-[12px] font-semibold cursor-pointer hover:bg-primary/20 transition-colors font-sans whitespace-nowrap">
                           Review
                         </button>
@@ -161,8 +164,11 @@ const SubmissionsPage = () => {
           submission={reviewTarget}
           onClose={() => setReviewTarget(null)}
           onReviewed={() => { setReviewTarget(null); loadSubmissions(); }}
+          toast={toast}
         />
       )}
+
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 };
